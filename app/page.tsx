@@ -4,7 +4,7 @@ import { useCallback, useState, useEffect } from "react";
 import type { Market } from "@/lib/types";
 import { SearchInput } from "@/components/SearchInput";
 import { MarketCard } from "@/components/MarketCard";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { throttle } from "lodash";
 import { useSearchParams, useRouter } from "next/navigation";
 
@@ -13,8 +13,10 @@ type SearchResponse = {
   nextCursor: string | null;
 };
 
-type EmbeddingResponse = {
-  embedding: number[];
+type SearchParams = {
+  searchQuery: string;
+  embedding?: number[];
+  cursor?: string | null;
 };
 
 export default function Home() {
@@ -40,6 +42,21 @@ export default function Home() {
     enabled: !!throttledQuery,
   });
 
+  const searchMarketsQuery = useInfiniteQuery({
+    queryKey: ["searchMarkets", queryParam, embeddingQuery.data],
+    queryFn: async ({ pageParam }) => {
+      const result = await searchMarkets({
+        searchQuery: queryParam as string,
+        embedding: embeddingQuery.data,
+        cursor: pageParam,
+      });
+      return result as SearchResponse;
+    },
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage?.nextCursor ?? null,
+    enabled: !!queryParam && !!embeddingQuery.data,
+  });
+
   const setSearchParams = useCallback(
     (query: string) => {
       const params = new URLSearchParams(searchParams);
@@ -48,16 +65,6 @@ export default function Home() {
     },
     [searchParams, replace]
   );
-
-  const searchMarketsQuery = useQuery({
-    queryKey: ["searchMarkets", queryParam, embeddingQuery.data] as const,
-    queryFn: ({ queryKey }) =>
-      searchMarkets({
-        searchQuery: queryKey[1] as string,
-        embedding: queryKey[2],
-      }),
-    enabled: !!queryParam && !!embeddingQuery.data,
-  });
 
   return (
     <main className="container mx-auto px-4 py-8 max-w-5xl">
@@ -80,20 +87,70 @@ export default function Home() {
         />
 
         <div className="space-y-4">
-          {searchMarketsQuery.data?.markets.length === 0 &&
-            query &&
-            !searchMarketsQuery.isLoading && (
-              <p className="text-center text-muted-foreground">
-                No markets found for &quot;{query}&quot;
-              </p>
-            )}
+          {searchMarketsQuery.status === "pending" ? (
+            <p className="text-center text-muted-foreground">Loading...</p>
+          ) : searchMarketsQuery.status === "error" ? (
+            <p className="text-center text-red-500">
+              Error: {searchMarketsQuery.error.message}
+            </p>
+          ) : (
+            <>
+              {searchMarketsQuery.data.pages.some(
+                (page) => page.markets.length === 0
+              ) &&
+                query && (
+                  <p className="text-center text-muted-foreground">
+                    No markets found for &quot;{query}&quot;
+                  </p>
+                )}
 
-          {searchMarketsQuery.data?.markets.map((market) => (
-            <MarketCard
-              key={`${market.site}-${market.market_id}`}
-              market={market}
-            />
-          ))}
+              {searchMarketsQuery.data.pages.some(
+                (page) => page.markets.length > 0
+              ) && (
+                <>
+                  <h2 className="text-2xl font-semibold">
+                    Search Results:{" "}
+                    <em className="text-muted-foreground">{queryParam}</em>
+                  </h2>
+
+                  {searchMarketsQuery.data.pages.map((page, i) => (
+                    <div key={i} className="space-y-4">
+                      {page.markets.map((market) => (
+                        <MarketCard
+                          key={`${market.site}-${market.market_id}`}
+                          market={market}
+                        />
+                      ))}
+                    </div>
+                  ))}
+
+                  <div className="flex justify-center pt-4">
+                    <button
+                      onClick={() => searchMarketsQuery.fetchNextPage()}
+                      disabled={
+                        !searchMarketsQuery.hasNextPage ||
+                        searchMarketsQuery.isFetchingNextPage
+                      }
+                      className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {searchMarketsQuery.isFetchingNextPage
+                        ? "Loading more..."
+                        : searchMarketsQuery.hasNextPage
+                        ? "Load More"
+                        : "No more results"}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {searchMarketsQuery.isFetching &&
+                !searchMarketsQuery.isFetchingNextPage && (
+                  <p className="text-center text-muted-foreground">
+                    Fetching...
+                  </p>
+                )}
+            </>
+          )}
         </div>
       </div>
     </main>
@@ -116,8 +173,7 @@ async function getEmbedding(searchQuery: string) {
       throw new Error("Embedding generation failed");
     }
 
-    const data: EmbeddingResponse = await response.json();
-
+    const data = await response.json();
     return data.embedding;
   } catch (error) {
     console.error("Embedding error:", error);
@@ -143,12 +199,7 @@ function DebugView({
   );
 }
 
-type SearchParams = {
-  searchQuery: string;
-  embedding?: number[];
-};
-
-async function searchMarkets({ searchQuery, embedding }: SearchParams) {
+async function searchMarkets({ searchQuery, embedding, cursor }: SearchParams) {
   if (!searchQuery.trim()) return;
   if (!embedding) return;
 
@@ -159,6 +210,7 @@ async function searchMarkets({ searchQuery, embedding }: SearchParams) {
       body: JSON.stringify({
         query: searchQuery,
         embedding,
+        ...(cursor ? { cursor } : {}),
       }),
     });
 
@@ -170,5 +222,6 @@ async function searchMarkets({ searchQuery, embedding }: SearchParams) {
     return data as SearchResponse;
   } catch (error) {
     console.error("Search error:", error);
+    throw error;
   }
 }
