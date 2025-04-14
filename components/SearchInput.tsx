@@ -33,7 +33,6 @@ export function SearchInput({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className="w-full pl-9 py-6 text-lg bg-background"
-        disabled={isLoading}
       />
       {isLoading && (
         <div className="absolute right-3 top-1/2 -translate-y-1/2">

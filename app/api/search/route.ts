@@ -20,6 +20,7 @@ client.connect();
 const searchSchema = z.object({
   query: z.string().min(1).max(1000),
   cursor: z.string().optional(),
+  embedding: z.array(z.number()).length(EMBEDDING_SIZE).optional(),
 });
 
 // Define types for our database results
@@ -31,14 +32,23 @@ export async function POST(req: Request) {
   try {
     // Parse and validate request body
     const body = await req.json();
-    const { query, cursor } = searchSchema.parse(body);
+    const {
+      query,
+      cursor,
+      embedding: providedEmbedding,
+    } = searchSchema.parse(body);
 
-    // Generate embedding using ai SDK and slice to match our database embedding size
-    const { embedding } = await embed({
-      model: openai.embedding("text-embedding-3-large"),
-      value: query,
-    });
-    const vectorQuery = `[${embedding.slice(0, EMBEDDING_SIZE).join(",")}]`;
+    // Generate embedding if not provided
+    let vectorQuery;
+    if (providedEmbedding) {
+      vectorQuery = `[${providedEmbedding.join(",")}]`;
+    } else {
+      const { embedding } = await embed({
+        model: openai.embedding("text-embedding-3-large"),
+        value: query,
+      });
+      vectorQuery = `[${embedding.slice(0, EMBEDDING_SIZE).join(",")}]`;
+    }
 
     // Build SQL query with cursor-based pagination
     let sql = `

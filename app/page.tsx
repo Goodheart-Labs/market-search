@@ -1,47 +1,63 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import type { Market } from "@/lib/types";
 import { SearchInput } from "@/components/SearchInput";
 import { MarketCard } from "@/components/MarketCard";
+import { useQuery } from "@tanstack/react-query";
+import { throttle } from "lodash";
+import { useSearchParams, useRouter } from "next/navigation";
 
 type SearchResponse = {
   markets: Omit<Market, "embedding" | "created_at">[];
   nextCursor: string | null;
 };
 
+type EmbeddingResponse = {
+  embedding: number[];
+};
+
 export default function Home() {
-  const [query, setQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [results, setResults] = useState<SearchResponse | null>(null);
+  const searchParams = useSearchParams();
+  const queryParam = searchParams.get("query");
+  const [query, setQuery] = useState(queryParam || "");
+  const [throttledQuery, setThrottledQuery] = useState(queryParam || "");
+  const { replace } = useRouter();
+  const throttledSearch = useCallback(
+    throttle((searchQuery: string) => {
+      setThrottledQuery(searchQuery);
+    }, 300),
+    []
+  );
 
-  const searchMarkets = useCallback(async (searchQuery: string) => {
-    if (!searchQuery.trim()) {
-      setResults(null);
-      return;
-    }
+  useEffect(() => {
+    throttledSearch(query);
+  }, [query, throttledSearch]);
 
-    setIsLoading(true);
-    try {
-      const response = await fetch("/api/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: searchQuery }),
-      });
+  const embeddingQuery = useQuery({
+    queryKey: ["embedding", throttledQuery],
+    queryFn: ({ queryKey }) => getEmbedding(queryKey[1]),
+    enabled: !!throttledQuery,
+  });
 
-      if (!response.ok) {
-        throw new Error("Search failed");
-      }
+  const setSearchParams = useCallback(
+    (query: string) => {
+      const params = new URLSearchParams(searchParams);
+      params.set("query", query);
+      replace(`?${params.toString()}`);
+    },
+    [searchParams, replace]
+  );
 
-      const data = await response.json();
-      setResults(data);
-    } catch (error) {
-      console.error("Search error:", error);
-      // You might want to show an error toast here
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const searchMarketsQuery = useQuery({
+    queryKey: ["searchMarkets", queryParam, embeddingQuery.data] as const,
+    queryFn: ({ queryKey }) =>
+      searchMarkets({
+        searchQuery: queryKey[1] as string,
+        embedding: queryKey[2],
+      }),
+    enabled: !!queryParam && !!embeddingQuery.data,
+  });
 
   return (
     <main className="container mx-auto px-4 py-8 max-w-5xl">
@@ -59,18 +75,20 @@ export default function Home() {
         <SearchInput
           value={query}
           onChange={setQuery}
-          onSearch={searchMarkets}
-          isLoading={isLoading}
+          onSearch={setSearchParams}
+          isLoading={searchMarketsQuery.isLoading}
         />
 
         <div className="space-y-4">
-          {results?.markets.length === 0 && query && !isLoading && (
-            <p className="text-center text-muted-foreground">
-              No markets found for &quot;{query}&quot;
-            </p>
-          )}
+          {searchMarketsQuery.data?.markets.length === 0 &&
+            query &&
+            !searchMarketsQuery.isLoading && (
+              <p className="text-center text-muted-foreground">
+                No markets found for &quot;{query}&quot;
+              </p>
+            )}
 
-          {results?.markets.map((market) => (
+          {searchMarketsQuery.data?.markets.map((market) => (
             <MarketCard
               key={`${market.site}-${market.market_id}`}
               market={market}
@@ -80,4 +98,77 @@ export default function Home() {
       </div>
     </main>
   );
+}
+
+async function getEmbedding(searchQuery: string) {
+  if (!searchQuery.trim()) {
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/embed", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: searchQuery }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Embedding generation failed");
+    }
+
+    const data: EmbeddingResponse = await response.json();
+
+    return data.embedding;
+  } catch (error) {
+    console.error("Embedding error:", error);
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function DebugView({
+  query,
+  throttledQuery,
+  embeddingData,
+}: {
+  query: string;
+  throttledQuery: string;
+  embeddingData?: number[];
+}) {
+  return (
+    <div>
+      <p>{query}</p>
+      <p>{throttledQuery}</p>
+      <p>Embedding Size: {embeddingData ? embeddingData.length : "null"}</p>
+    </div>
+  );
+}
+
+type SearchParams = {
+  searchQuery: string;
+  embedding?: number[];
+};
+
+async function searchMarkets({ searchQuery, embedding }: SearchParams) {
+  if (!searchQuery.trim()) return;
+  if (!embedding) return;
+
+  try {
+    const response = await fetch("/api/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: searchQuery,
+        embedding,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Search failed");
+    }
+
+    const data = await response.json();
+    return data as SearchResponse;
+  } catch (error) {
+    console.error("Search error:", error);
+  }
 }
