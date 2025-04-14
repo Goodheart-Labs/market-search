@@ -24,7 +24,7 @@ export function SearchInput({
         onSearch(value);
       }}
     >
-      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400">
         <Search className="h-4 w-4" />
       </div>
       <Input
@@ -32,11 +32,11 @@ export function SearchInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full pl-9 py-6 text-lg bg-background"
+        className="w-full pl-10 py-5 text-base bg-transparent border-zinc-200 hover:border-zinc-300 transition-colors font-light placeholder:text-zinc-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-zinc-400"
       />
       {isLoading && (
-        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-600 border-t-transparent" />
         </div>
       )}
     </form>

@@ -1,12 +1,18 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useCallback, useState, useEffect } from "react";
 import type { Market } from "@/lib/types";
 import { SearchInput } from "@/components/SearchInput";
 import { MarketCard } from "@/components/MarketCard";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { throttle } from "lodash";
 import { useSearchParams, useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 type SearchResponse = {
   markets: Omit<Market, "embedding" | "created_at">[];
@@ -31,6 +37,7 @@ export default function Home() {
     }, 300),
     []
   );
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     throttledSearch(query);
@@ -42,19 +49,31 @@ export default function Home() {
     enabled: !!throttledQuery,
   });
 
+  // How can we grab the embedding data specific to the queryParam?
+  const queryEmbedding = queryClient.getQueryData<number[]>([
+    "embedding",
+    queryParam,
+  ]);
+
   const searchMarketsQuery = useInfiniteQuery({
-    queryKey: ["searchMarkets", queryParam, embeddingQuery.data],
+    queryKey: ["searchMarkets", queryParam, queryEmbedding],
     queryFn: async ({ pageParam }) => {
       const result = await searchMarkets({
         searchQuery: queryParam as string,
-        embedding: embeddingQuery.data,
+        embedding: queryEmbedding,
         cursor: pageParam,
       });
-      return result as SearchResponse;
+      if (!result) {
+        throw new Error("Search failed");
+      }
+      return result;
     },
+    placeholderData: (data) => data,
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage?.nextCursor ?? null,
-    enabled: !!queryParam && !!embeddingQuery.data,
+
+    enabled:
+      !!queryParam && !!embeddingQuery.data && queryParam === throttledQuery,
   });
 
   const setSearchParams = useCallback(
@@ -66,29 +85,46 @@ export default function Home() {
     [searchParams, replace]
   );
 
+  // if we're fetching the embedding for the queryParam
+  const isFetchingEmbedding =
+    searchMarketsQuery.isFetching &&
+    searchMarketsQuery.fetchStatus !== "idle" &&
+    queryParam === throttledQuery;
+
+  const isLoadingStale = searchMarketsQuery.isFetching || isFetchingEmbedding;
+
   return (
-    <main className="container mx-auto px-4 py-8 max-w-5xl">
+    <main className="container mx-auto px-4 py-12 max-w-4xl">
       <div className="space-y-8">
         <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold tracking-tight">
-            Search Prediction Markets
-          </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <div className="flex items-center justify-center gap-2">
+            <img src="/logo.png" alt="Market Search" className="w-12 h-12" />
+            <h1 className="font-serif text-5xl font-medium tracking-tight">
+              Market Search
+            </h1>
+          </div>
+          <p className="text-base text-zinc-600 max-w-xl mx-auto leading-relaxed font-light">
             Search across Manifold, Polymarket, and Kalshi using natural
             language
           </p>
         </div>
 
-        <SearchInput
-          value={query}
-          onChange={setQuery}
-          onSearch={setSearchParams}
-          isLoading={searchMarketsQuery.isLoading}
-        />
+        <div className="max-w-2xl mx-auto">
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            onSearch={setSearchParams}
+            isLoading={isLoadingStale}
+          />
+        </div>
 
-        <div className="space-y-4">
+        <div
+          className={cn("grid transition-opacity duration-300", {
+            "opacity-50": isLoadingStale,
+          })}
+        >
           {searchMarketsQuery.status === "pending" ? (
-            <p className="text-center text-muted-foreground">Loading...</p>
+            <p className="text-center text-zinc-600">Loading...</p>
           ) : searchMarketsQuery.status === "error" ? (
             <p className="text-center text-red-500">
               Error: {searchMarketsQuery.error.message}
@@ -99,7 +135,7 @@ export default function Home() {
                 (page) => page.markets.length === 0
               ) &&
                 query && (
-                  <p className="text-center text-muted-foreground">
+                  <p className="text-center text-zinc-600 text-base">
                     No markets found for &quot;{query}&quot;
                   </p>
                 )}
@@ -108,13 +144,19 @@ export default function Home() {
                 (page) => page.markets.length > 0
               ) && (
                 <>
-                  <h2 className="text-2xl font-semibold">
-                    Search Results:{" "}
-                    <em className="text-muted-foreground">{queryParam}</em>
-                  </h2>
+                  <div className="border-b border-zinc-200 pb-1">
+                    <h2 className="text-2xl font-serif tracking-tight">
+                      Results for{" "}
+                      <span className="italic text-zinc-500">
+                        &#8220;
+                        {searchMarketsQuery.data.pages[0].searchQuery}
+                        &#8221;
+                      </span>
+                    </h2>
+                  </div>
 
                   {searchMarketsQuery.data.pages.map((page, i) => (
-                    <div key={i} className="space-y-4">
+                    <div key={i}>
                       {page.markets.map((market) => (
                         <MarketCard
                           key={`${market.site}-${market.market_id}`}
@@ -124,14 +166,14 @@ export default function Home() {
                     </div>
                   ))}
 
-                  <div className="flex justify-center pt-4">
+                  <div className="flex justify-center pt-6">
                     <button
                       onClick={() => searchMarketsQuery.fetchNextPage()}
                       disabled={
                         !searchMarketsQuery.hasNextPage ||
                         searchMarketsQuery.isFetchingNextPage
                       }
-                      className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-5 py-2 bg-zinc-900 text-white rounded-full hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
                     >
                       {searchMarketsQuery.isFetchingNextPage
                         ? "Loading more..."
@@ -145,9 +187,7 @@ export default function Home() {
 
               {searchMarketsQuery.isFetching &&
                 !searchMarketsQuery.isFetchingNextPage && (
-                  <p className="text-center text-muted-foreground">
-                    Fetching...
-                  </p>
+                  <p className="text-center text-zinc-600">Fetching...</p>
                 )}
             </>
           )}
@@ -218,8 +258,8 @@ async function searchMarkets({ searchQuery, embedding, cursor }: SearchParams) {
       throw new Error("Search failed");
     }
 
-    const data = await response.json();
-    return data as SearchResponse;
+    const data = (await response.json()) as SearchResponse;
+    return { ...data, searchQuery };
   } catch (error) {
     console.error("Search error:", error);
     throw error;
