@@ -129,6 +129,8 @@ export default function Home() {
             <p className="text-center text-red-500">
               Error: {searchMarketsQuery.error.message}
             </p>
+          ) : !queryParam ? (
+            <p className="text-center text-zinc-600">Loading...</p>
           ) : (
             <>
               {searchMarketsQuery.data.pages.some(
