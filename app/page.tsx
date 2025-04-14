@@ -123,14 +123,16 @@ export default function Home() {
             "opacity-50": isLoadingStale,
           })}
         >
-          {searchMarketsQuery.status === "pending" ? (
+          {!queryParam ? (
+            <p className="text-center text-zinc-600">
+              Search for markets by name, description, or keywords
+            </p>
+          ) : searchMarketsQuery.status === "pending" ? (
             <p className="text-center text-zinc-600">Loading...</p>
           ) : searchMarketsQuery.status === "error" ? (
             <p className="text-center text-red-500">
               Error: {searchMarketsQuery.error.message}
             </p>
-          ) : !queryParam ? (
-            <p className="text-center text-zinc-600">Loading...</p>
           ) : (
             <>
               {searchMarketsQuery.data.pages.some(
