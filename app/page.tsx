@@ -161,10 +161,11 @@ export default function Home() {
 
                   {searchMarketsQuery.data.pages.map((page, i) => (
                     <div key={i}>
-                      {page.markets.map((market) => (
+                      {page.markets.map((market, marketIndex) => (
                         <MarketCard
                           key={`${market.site}-${market.market_id}`}
                           market={market}
+                          index={marketIndex + i * page.markets.length}
                         />
                       ))}
                     </div>
