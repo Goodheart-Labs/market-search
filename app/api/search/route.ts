@@ -21,6 +21,7 @@ const searchSchema = z.object({
   query: z.string().min(1).max(1000),
   cursor: z.string().optional(),
   embedding: z.array(z.number()).length(EMBEDDING_SIZE).optional(),
+  status: z.enum(["open", "closed", "all"]).optional().default("open"),
 });
 
 // Define types for our database results
@@ -36,6 +37,7 @@ export async function POST(req: Request) {
       query,
       cursor,
       embedding: providedEmbedding,
+      status,
     } = searchSchema.parse(body);
 
     // Generate embedding if not provided
@@ -66,12 +68,26 @@ export async function POST(req: Request) {
 
     const params: (number[] | number | string)[] = [vectorQuery];
 
+    // Add status filter condition
+    if (status !== "all") {
+      const now = new Date().toISOString();
+      if (status === "open") {
+        sql += ` AND close_time > $${params.length + 1}`;
+        params.push(now);
+      } else {
+        sql += ` AND close_time <= $${params.length + 1}`;
+        params.push(now);
+      }
+    }
+
     // Add cursor condition if provided
     if (cursor) {
       const [lastSimilarity, lastId] = cursor.split("_");
       sql += ` AND (
-        (1 - (embedding <=> $1)) < $2 
-        OR ((1 - (embedding <=> $1)) = $2 AND id > $3)
+        (1 - (embedding <=> $1)) < $${params.length + 1}
+        OR ((1 - (embedding <=> $1)) = $${params.length + 1} AND id > $${
+        params.length + 2
+      })
       )`;
       params.push(parseFloat(lastSimilarity), lastId);
     }

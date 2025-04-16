@@ -33,7 +33,7 @@ export function SearchInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full pl-10 py-5 text-base bg-transparent border-zinc-200 hover:border-zinc-300 transition-colors font-light placeholder:text-zinc-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-zinc-400"
+          className="w-full pl-10 py-5 h-12 text-base bg-transparent border-zinc-200 hover:border-zinc-300 transition-colors font-light placeholder:text-zinc-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-zinc-400"
         />
         {isLoading && (
           <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
@@ -41,10 +41,6 @@ export function SearchInput({
           </div>
         )}
       </form>
-      <p className="text-xs text-zinc-300 justify-self-end">
-        Press <kbd className="rounded-md bg-zinc-100 px-1.5 py-0.5">Enter</kbd>{" "}
-        to search
-      </p>
     </div>
   );
 }

@@ -2,9 +2,10 @@
 "use client";
 
 import { useCallback, useState, useEffect } from "react";
-import type { Market } from "@/lib/types";
+import type { Market, MarketStatus } from "@/lib/types";
 import { SearchInput } from "@/components/SearchInput";
 import { MarketCard } from "@/components/MarketCard";
+import { MarketStatusFilter } from "@/components/MarketStatusFilter";
 import {
   useInfiniteQuery,
   useQuery,
@@ -13,6 +14,8 @@ import {
 import { throttle } from "lodash";
 import { useSearchParams, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { SendIcon } from "lucide-react";
 
 type SearchResponse = {
   markets: Omit<Market, "embedding" | "open_time">[];
@@ -23,13 +26,16 @@ type SearchParams = {
   searchQuery: string;
   embedding?: number[];
   cursor?: string | null;
+  status: MarketStatus;
 };
 
 export default function Home() {
   const searchParams = useSearchParams();
   const queryParam = searchParams.get("query");
+  const statusParam = (searchParams.get("status") as MarketStatus) || "open";
   const [query, setQuery] = useState(queryParam || "");
   const [throttledQuery, setThrottledQuery] = useState(queryParam || "");
+  const [status, setStatus] = useState<MarketStatus>(statusParam);
   const { replace } = useRouter();
   const throttledSearch = useCallback(
     throttle((searchQuery: string) => {
@@ -49,19 +55,19 @@ export default function Home() {
     enabled: !!throttledQuery,
   });
 
-  // How can we grab the embedding data specific to the queryParam?
   const queryEmbedding = queryClient.getQueryData<number[]>([
     "embedding",
     queryParam,
   ]);
 
   const searchMarketsQuery = useInfiniteQuery({
-    queryKey: ["searchMarkets", queryParam, queryEmbedding],
+    queryKey: ["searchMarkets", queryParam, queryEmbedding, status],
     queryFn: async ({ pageParam }) => {
       const result = await searchMarkets({
         searchQuery: queryParam as string,
         embedding: queryEmbedding,
         cursor: pageParam,
+        status,
       });
       if (!result) {
         throw new Error("Search failed");
@@ -71,7 +77,6 @@ export default function Home() {
     placeholderData: (data) => data,
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage?.nextCursor ?? null,
-
     enabled:
       !!queryParam && !!embeddingQuery.data && queryParam === throttledQuery,
   });
@@ -80,9 +85,23 @@ export default function Home() {
     (query: string) => {
       const params = new URLSearchParams(searchParams);
       params.set("query", query);
+      params.set("status", status);
       replace(`?${params.toString()}`);
     },
-    [searchParams, replace]
+    [searchParams, replace, status]
+  );
+
+  const handleStatusChange = useCallback(
+    (newStatus: MarketStatus) => {
+      setStatus(newStatus);
+      const params = new URLSearchParams(searchParams);
+      if (queryParam) {
+        params.set("query", queryParam);
+      }
+      params.set("status", newStatus);
+      replace(`?${params.toString()}`);
+    },
+    [searchParams, replace, queryParam]
   );
 
   // if we're fetching the embedding for the queryParam
@@ -103,19 +122,27 @@ export default function Home() {
               Market Search
             </h1>
           </div>
-          <p className="text-base text-zinc-600 max-w-xl mx-auto leading-relaxed font-light">
+          <p className="text-base text-zinc-600 max-w-xl mx-auto leading-normal font-light text-balance">
             Search across Manifold, Polymarket, and Kalshi using natural
             language
           </p>
         </div>
 
-        <div className="max-w-2xl mx-auto">
-          <SearchInput
-            value={query}
-            onChange={setQuery}
-            onSearch={setSearchParams}
-            isLoading={isLoadingStale}
-          />
+        <div className="max-w-2xl mx-auto space-y-4">
+          <div className="relative flex items-start gap-2">
+            <div className="flex-1">
+              <SearchInput
+                value={query}
+                onChange={setQuery}
+                onSearch={setSearchParams}
+                isLoading={isLoadingStale}
+              />
+            </div>
+            <MarketStatusFilter value={status} onChange={handleStatusChange} />
+            <Button size="icon" className="h-12 w-12" variant="outline">
+              <SendIcon className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
 
         <div
@@ -244,7 +271,12 @@ function DebugView({
   );
 }
 
-async function searchMarkets({ searchQuery, embedding, cursor }: SearchParams) {
+async function searchMarkets({
+  searchQuery,
+  embedding,
+  cursor,
+  status,
+}: SearchParams) {
   if (!searchQuery.trim()) return;
   if (!embedding) return;
 
@@ -256,6 +288,7 @@ async function searchMarkets({ searchQuery, embedding, cursor }: SearchParams) {
         query: searchQuery,
         embedding,
         ...(cursor ? { cursor } : {}),
+        status,
       }),
     });
 

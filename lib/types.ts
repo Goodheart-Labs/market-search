@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export type MarketStatus = "open" | "closed" | "all";
+
 const MarketSchema = z.object({
   id: z.number(),
   site: z.enum(["manifold", "polymarket", "kalshi"]),
@@ -8,6 +10,7 @@ const MarketSchema = z.object({
   description: z.string().optional(),
   url: z.string(),
   open_time: z.date(),
+  close_time: z.date(),
   embedding: z.array(z.number()),
 });
 
