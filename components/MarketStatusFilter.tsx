@@ -7,8 +7,6 @@ interface MarketStatusFilterProps {
   onChange: (value: MarketStatus) => void;
 }
 
-const itemClassName = "px-4 h-12";
-
 export function MarketStatusFilter({
   value,
   onChange,

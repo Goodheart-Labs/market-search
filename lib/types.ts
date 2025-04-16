@@ -12,6 +12,7 @@ const MarketSchema = z.object({
   open_time: z.date(),
   close_time: z.date(),
   embedding: z.array(z.number()),
+  details: z.record(z.unknown()).optional(),
 });
 
 export type Market = z.infer<typeof MarketSchema>;

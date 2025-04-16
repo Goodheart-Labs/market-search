@@ -2,6 +2,7 @@ import { Market } from "@/lib/types";
 import { ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { brands } from "@/components/Brands";
+import { MarketDetails } from "./MarketDetails";
 
 interface MarketCardProps {
   market: Omit<Market, "embedding" | "open_time">;
@@ -25,9 +26,7 @@ export function MarketCard({ market, index }: MarketCardProps) {
               <BrandLogo className="h-4 w-4 mr-1 opacity-80" />
               {market.site}
             </Badge>
-            {/* <Badge variant="outline" className="text-xs">
-              Open
-            </Badge> */}
+            <MarketDetails details={market.details} />
           </div>
           <h3 className="text-base leading-snug">
             <a
