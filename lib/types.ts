@@ -7,7 +7,7 @@ const MarketSchema = z.object({
   title: z.string(),
   description: z.string().optional(),
   url: z.string(),
-  created_at: z.date(),
+  open_time: z.date(),
   embedding: z.array(z.number()),
 });
 

@@ -15,7 +15,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 type SearchResponse = {
-  markets: Omit<Market, "embedding" | "created_at">[];
+  markets: Omit<Market, "embedding" | "open_time">[];
   nextCursor: string | null;
 };
 
@@ -99,7 +99,7 @@ export default function Home() {
         <div className="text-center space-y-4">
           <div className="flex items-center justify-center gap-2">
             <img src="/logo.png" alt="Market Search" className="w-12 h-12" />
-            <h1 className="font-serif text-5xl font-medium tracking-tight">
+            <h1 className="font-serif text-5xl font-medium tracking-tighter">
               Market Search
             </h1>
           </div>

@@ -24,7 +24,7 @@ const searchSchema = z.object({
 });
 
 // Define types for our database results
-type SearchResult = Omit<Market, "embedding" | "created_at"> & {
+type SearchResult = Omit<Market, "embedding" | "open_time"> & {
   similarity: number;
 };
 

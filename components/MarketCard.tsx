@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { brands } from "@/components/Brands";
 
 interface MarketCardProps {
-  market: Omit<Market, "embedding" | "created_at">;
+  market: Omit<Market, "embedding" | "open_time">;
   index: number;
 }
 
