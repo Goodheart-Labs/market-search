@@ -26,7 +26,9 @@ export function MarketCard({ market, index }: MarketCardProps) {
               <BrandLogo className="h-4 w-4 mr-1 opacity-80" />
               {market.site}
             </Badge>
-            <MarketDetails details={market.details} />
+            <MarketDetails
+              details={market.details as Record<string, unknown>}
+            />
           </div>
           <h3 className="text-base leading-snug">
             <a

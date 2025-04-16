@@ -27,7 +27,7 @@ const searchSchema = z.object({
 // Define types for our database results
 type SearchResult = Omit<Market, "embedding" | "open_time"> & {
   similarity: number;
-  details: Record<string, any>;
+  details: Record<string, unknown>;
 };
 
 export async function POST(req: Request) {

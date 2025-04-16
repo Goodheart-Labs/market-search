@@ -22,7 +22,7 @@ const possibleDetails: Detail[] = [
       return "N/A";
     },
     title: (value) => {
-      return `Probability: ${Math.round(value * 100)}%`;
+      return `Probability: ${Math.round((value as number) * 100)}%`;
     },
   },
   {
