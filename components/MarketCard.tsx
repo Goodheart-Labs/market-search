@@ -1,8 +1,9 @@
 import { Market } from "@/lib/types";
 import { ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { brands } from "@/components/Brands";
+import { brandColors, brands } from "@/components/Brands";
 import { MarketDetails } from "./MarketDetails";
+import { cn } from "@/lib/utils";
 
 interface MarketCardProps {
   market: Omit<Market, "embedding" | "open_time">;
@@ -21,7 +22,10 @@ export function MarketCard({ market, index }: MarketCardProps) {
           <div className="flex items-center gap-2 mb-1">
             <Badge
               variant="secondary"
-              className="capitalize bg-transparent text-zinc-500 bg-zinc-100 transition-colors px-2 py-0.5 text-xs"
+              className={cn(
+                "capitalize px-2 py-0.5 text-xs",
+                brandColors[market.site as keyof typeof brandColors]
+              )}
             >
               <BrandLogo className="h-4 w-4 mr-1 opacity-80" />
               {market.site}

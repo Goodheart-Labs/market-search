@@ -17,6 +17,28 @@ export const ManifoldMarketLogo = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+export const KalshiLogo = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={19}
+    height={20}
+    viewBox="-4 -4 25 29"
+    fill="none"
+    {...props}
+  >
+    <path
+      fill="currentColor"
+      d="M.417.022h4.322v8.972l8.08-8.972h5.24l-7.412 8.224L18.538 20h-5.177L7.599 11.57l-2.86 3.177V20H.417V.022Z"
+    />
+  </svg>
+);
+
 export const brands = {
   manifold: ManifoldMarketLogo,
+  kalshi: KalshiLogo,
+};
+
+export const brandColors = {
+  manifold: "text-[#4338ca] bg-[#4338ca]/10",
+  kalshi: "text-[#00b478] bg-[#00b478]/10",
 };

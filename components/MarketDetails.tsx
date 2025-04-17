@@ -1,4 +1,9 @@
-import { DollarSignIcon, PercentIcon, UsersIcon } from "lucide-react";
+import {
+  DollarSignIcon,
+  EqualIcon,
+  PercentIcon,
+  UsersIcon,
+} from "lucide-react";
 import { ReactNode } from "react";
 interface MarketDetailsProps {
   details: Record<string, unknown>;
@@ -49,6 +54,19 @@ const possibleDetails: Detail[] = [
     },
     title: (value) => {
       return `Trading Volume: ${Math.round(value as number)}`;
+    },
+  },
+  {
+    propertyName: "outcome",
+    icon: EqualIcon,
+    process(value) {
+      if (typeof value === "string") {
+        return value.length > 24 ? `${value.slice(0, 24)}...` : value;
+      }
+      return "N/A";
+    },
+    title: (value) => {
+      return `Outcome: ${value}`;
     },
   },
 ];
