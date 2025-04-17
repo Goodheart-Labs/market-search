@@ -33,12 +33,32 @@ export const KalshiLogo = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+export const PolymarketLogo = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={23}
+    height={28}
+    viewBox="0 0 23 28"
+    fill="none"
+    {...props}
+  >
+    <path
+      fill="currentColor"
+      fillRule="evenodd"
+      d="M22.954 27.799V.2l-.24.068L.856 6.425l-.138.04v15.07l.138.04 22.099 6.224ZM20.46 12.018 5.288 7.745 20.46 3.47v8.547ZM3.212 18.273V9.727L18.382 14l-15.17 4.273Zm17.248 6.256L5.288 20.256l15.172-4.274v8.547Z"
+      clipRule="evenodd"
+    />
+  </svg>
+);
+
 export const brands = {
   manifold: ManifoldMarketLogo,
   kalshi: KalshiLogo,
+  polymarket: PolymarketLogo,
 };
 
 export const brandColors = {
   manifold: "text-[#4338ca] bg-[#4338ca]/10",
   kalshi: "text-[#00b478] bg-[#00b478]/10",
+  polymarket: "text-[#1652f0] bg-[#1652f0]/10",
 };
