@@ -6,6 +6,7 @@ import type { Market, MarketStatus } from "@/lib/types";
 import { SearchInput } from "@/components/SearchInput";
 import { MarketCard } from "@/components/MarketCard";
 import { MarketStatusFilter } from "@/components/MarketStatusFilter";
+import { SourceFilter, type MarketSource } from "@/components/SourceFilter";
 import {
   useInfiniteQuery,
   useQuery,
@@ -27,15 +28,20 @@ type SearchParams = {
   embedding?: number[];
   cursor?: string | null;
   status: MarketStatus;
+  sources?: MarketSource[];
 };
 
 export default function Home() {
   const searchParams = useSearchParams();
   const queryParam = searchParams.get("query");
   const statusParam = (searchParams.get("status") as MarketStatus) || "open";
+  const sourcesParam = (searchParams
+    .get("sources")
+    ?.split(",") as MarketSource[]) || ["manifold", "polymarket", "kalshi"];
   const [query, setQuery] = useState(queryParam || "");
   const [throttledQuery, setThrottledQuery] = useState(queryParam || "");
   const [status, setStatus] = useState<MarketStatus>(statusParam);
+  const [sources, setSources] = useState<MarketSource[]>(sourcesParam);
   const { replace } = useRouter();
   const throttledSearch = useCallback(
     throttle((searchQuery: string) => {
@@ -61,13 +67,14 @@ export default function Home() {
   ]);
 
   const searchMarketsQuery = useInfiniteQuery({
-    queryKey: ["searchMarkets", queryParam, queryEmbedding, status],
+    queryKey: ["searchMarkets", queryParam, queryEmbedding, status, sources],
     queryFn: async ({ pageParam }) => {
       const result = await searchMarkets({
         searchQuery: queryParam as string,
         embedding: queryEmbedding,
         cursor: pageParam,
         status,
+        sources: sources.length > 0 ? sources : undefined,
       });
       if (!result) {
         throw new Error("Search failed");
@@ -86,9 +93,14 @@ export default function Home() {
       const params = new URLSearchParams(searchParams);
       params.set("query", query);
       params.set("status", status);
+      if (sources.length > 0) {
+        params.set("sources", sources.join(","));
+      } else {
+        params.delete("sources");
+      }
       replace(`?${params.toString()}`);
     },
-    [searchParams, replace, status]
+    [searchParams, replace, status, sources]
   );
 
   const handleStatusChange = useCallback(
@@ -99,9 +111,30 @@ export default function Home() {
         params.set("query", queryParam);
       }
       params.set("status", newStatus);
+      if (sources.length > 0) {
+        params.set("sources", sources.join(","));
+      }
       replace(`?${params.toString()}`);
     },
-    [searchParams, replace, queryParam]
+    [searchParams, replace, queryParam, sources]
+  );
+
+  const handleSourcesChange = useCallback(
+    (newSources: MarketSource[]) => {
+      setSources(newSources);
+      const params = new URLSearchParams(searchParams);
+      if (queryParam) {
+        params.set("query", queryParam);
+      }
+      params.set("status", status);
+      if (newSources.length > 0) {
+        params.set("sources", newSources.join(","));
+      } else {
+        params.delete("sources");
+      }
+      replace(`?${params.toString()}`);
+    },
+    [searchParams, replace, queryParam, status]
   );
 
   // if we're fetching the embedding for the queryParam
@@ -143,6 +176,10 @@ export default function Home() {
               <SendIcon className="w-4 h-4" />
             </Button>
           </div>
+          <SourceFilter
+            selectedSources={sources}
+            onChange={handleSourcesChange}
+          />
         </div>
 
         <div
@@ -276,6 +313,7 @@ async function searchMarkets({
   embedding,
   cursor,
   status,
+  sources,
 }: SearchParams) {
   if (!searchQuery.trim()) return;
   if (!embedding) return;
@@ -289,6 +327,7 @@ async function searchMarkets({
         embedding,
         ...(cursor ? { cursor } : {}),
         status,
+        sources,
       }),
     });
 

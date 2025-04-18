@@ -22,6 +22,7 @@ const searchSchema = z.object({
   cursor: z.string().optional(),
   embedding: z.array(z.number()).length(EMBEDDING_SIZE).optional(),
   status: z.enum(["open", "closed", "all"]).optional().default("open"),
+  sources: z.array(z.enum(["manifold", "polymarket", "kalshi"])).optional(),
 });
 
 // Define types for our database results
@@ -39,6 +40,7 @@ export async function POST(req: Request) {
       cursor,
       embedding: providedEmbedding,
       status,
+      sources,
     } = searchSchema.parse(body);
 
     // Generate embedding if not provided
@@ -68,7 +70,7 @@ export async function POST(req: Request) {
       WHERE 1=1
     `;
 
-    const params: (number[] | number | string)[] = [vectorQuery];
+    const params: (number[] | number | string | string[])[] = [vectorQuery];
 
     // Add status filter condition
     if (status !== "all") {
@@ -80,6 +82,12 @@ export async function POST(req: Request) {
         sql += ` AND close_time <= $${params.length + 1}`;
         params.push(now);
       }
+    }
+
+    // Add sources filter condition
+    if (sources && sources.length > 0) {
+      sql += ` AND site = ANY($${params.length + 1})`;
+      params.push(sources);
     }
 
     // Add cursor condition if provided
